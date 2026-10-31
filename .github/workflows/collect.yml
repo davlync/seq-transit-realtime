@@ -1,0 +1,35 @@
+name: Record TransLink realtime
+
+on:
+  schedule:
+    - cron: "0 * * * *"       # every hour; each run records ~116 minutes and the next one queues behind it,
+                              # so recording stays continuous even when GitHub starts scheduled runs late or skips one
+  workflow_dispatch: {}
+
+concurrency:
+  group: collector            # one recorder at a time; at most one run waits in the queue
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q pandas gtfs-realtime-bindings
+      - name: Record
+        run: python collect.py --minutes 116 --interval 30 --out data --chunks
+      - name: Commit
+        run: |
+          git config user.name "realtime-recorder"
+          git config user.email "realtime-recorder@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet && exit 0
+          git commit -q -m "Realtime data $(TZ=Australia/Brisbane date '+%Y-%m-%d %H:%M')"
+          for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 10; done
