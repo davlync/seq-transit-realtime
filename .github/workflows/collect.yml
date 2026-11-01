@@ -1,9 +1,14 @@
 name: Record TransLink realtime
 
+# Busy periods only, until Sunday 15 November 2026 (see window.py):
+#   weekdays 6-9am and 3-7pm, weekends 11am-3pm, Brisbane time.
+# GitHub starts scheduled runs late or drops them, so several triggers fire before and during each window (off the
+# top of the hour). The first one to start records to the end of the window; the rest find it covered and exit.
 on:
   schedule:
-    - cron: "23,53 * * * *"   # backstop only, off the top of the hour (GitHub delays or drops scheduled runs at :00).
-                              # The main loop is the self-chain below: each run starts the next one when it finishes.
+    - cron: "5,20,35,50 19-22 * * 0-4"   # weekday mornings (UTC, previous day)
+    - cron: "5,20,35,50 4-8 * * 1-5"     # weekday afternoons
+    - cron: "5,20,35,50 0-4 * * 0,6"     # weekend middays
   workflow_dispatch: {}
 
 concurrency:
@@ -12,21 +17,32 @@ concurrency:
 
 permissions:
   contents: write
-  actions: write              # lets a run start the next run (workflow_dispatch)
+  actions: write              # to disable this workflow after the end date
 
 jobs:
   record:
     runs-on: ubuntu-latest
-    timeout-minutes: 130
+    timeout-minutes: 310
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -q pandas gtfs-realtime-bindings
+      - id: win
+        run: python window.py
+      - name: Switch off after the end date
+        if: steps.win.outputs.stop == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow disable collect.yml -R "${{ github.repository }}"
       - name: Record
-        run: python collect.py --minutes 116 --interval 30 --out data --chunks
+        if: steps.win.outputs.minutes != '0.0'
+        run: |
+          sleep ${{ steps.win.outputs.wait }}
+          pip install -q pandas gtfs-realtime-bindings
+          python collect.py --minutes ${{ steps.win.outputs.minutes }} --interval 30 --out data --chunks
       - name: Commit
+        if: steps.win.outputs.minutes != '0.0'
         run: |
           git config user.name "realtime-recorder"
           git config user.email "realtime-recorder@users.noreply.github.com"
@@ -34,8 +50,3 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -q -m "Realtime data $(TZ=Australia/Brisbane date '+%Y-%m-%d %H:%M')"
           for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 10; done
-      - name: Start the next run
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run collect.yml --ref "${{ github.ref_name }}" -R "${{ github.repository }}"

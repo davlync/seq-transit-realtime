@@ -4,8 +4,8 @@ Records TransLink's public GTFS-realtime TripUpdates feed for South East Queensl
 the last predicted time before the vehicle reached that stop: a close proxy for its actual arrival and departure time.
 
 - `collect.py`: polls the feed every 30 seconds.
-- `.github/workflows/collect.yml`: runs the recorder around the clock in back-to-back blocks of just under two hours and
-  commits the results.
+- `.github/workflows/collect.yml` and `window.py`: record busy periods only (weekdays 6-9am and 3-7pm, weekends
+  11am-3pm, Brisbane time) from 1 to 15 November 2026, then switch off.
 - `data/YYYY-MM-DD/HHMM.csv.gz`: one file per recording block, grouped by service date and named by the block's start
   time (Brisbane time). `1402-pilot.csv.gz` is a one-hour test recording from Saturday 31 October 2026.
 
