@@ -1,4 +1,4 @@
-"""Decide what this run should do: record the current (or next, if it opens within 50 min) busy-period window.
+"""Decide what this run should do: record the current (or next, if it opens within 100 min) busy-period window.
 
 Windows, Brisbane time: weekdays 06:00-09:00 and 15:00-19:00; weekends 11:00-15:00. Recording stops for good at END.
 Writes wait=<seconds> minutes=<minutes> stop=<0|1> to $GITHUB_OUTPUT (or prints them).
@@ -11,7 +11,7 @@ TZ = ZoneInfo("Australia/Brisbane")
 END = datetime(2026, 11, 15, 20, 0, tzinfo=TZ)
 WEEKDAY = [(time(6), time(9)), (time(15), time(19))]
 WEEKEND = [(time(11), time(15))]
-LEAD = timedelta(minutes=50)
+LEAD = timedelta(minutes=100)
 
 
 def windows(day):

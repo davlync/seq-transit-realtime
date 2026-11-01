@@ -6,9 +6,11 @@ name: Record TransLink realtime
 # top of the hour). The first one to start records to the end of the window; the rest find it covered and exit.
 on:
   schedule:
-    - cron: "5,20,35,50 19-22 * * 0-4"   # weekday mornings (UTC, previous day)
-    - cron: "5,20,35,50 4-8 * * 1-5"     # weekday afternoons
+    # from about 1h40 before each window opens; an early run waits, then records the whole window
+    - cron: "5,20,35,50 18-22 * * 0-4"   # weekday mornings (UTC, previous day)
+    - cron: "5,20,35,50 3-8 * * 1-5"     # weekday afternoons
     - cron: "5,20,35,50 0-4 * * 0,6"     # weekend middays
+    - cron: "5,20,35,50 23 * * 5,6"      # weekend 9-10am (UTC, previous day)
   workflow_dispatch: {}
 
 concurrency:
@@ -22,7 +24,7 @@ permissions:
 jobs:
   record:
     runs-on: ubuntu-latest
-    timeout-minutes: 310
+    timeout-minutes: 355
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
